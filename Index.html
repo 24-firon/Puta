@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <!-- Puter.js laden (WICHTIG) -->
+    <script src="https://js.puter.com/v2/"></script>
+    <style>body{font-family:sans-serif;padding:20px;}</style>
+</head>
+<body>
+    <h1>GPT-5.2 Dashboard</h1>
+    <div id="status">Lade...</div>
+    <div id="chat" style="border:1px solid #ccc;height:300px;overflow:auto;margin:10px 0;padding:10px;"></div>
+    <input type="text" id="msg" placeholder="Nachricht..." style="width:80%">
+    <button onclick="send()">Senden</button>
+
+    <script>
+        const chat = document.getElementById('chat');
+        const status = document.getElementById('status');
+
+        // 1. Automatisch einloggen (Popup wenn nötig, sonst Silent)
+        (async () => {
+            if (!puter.auth.isSignedIn()) {
+                status.innerText = "Logge ein...";
+                await puter.auth.signIn();
+            }
+            status.innerText = "Verbunden als: " + (await puter.auth.getUser()).username;
+        })();
+
+        // 2. Chat Funktion
+        async function send() {
+            const txt = document.getElementById('msg').value;
+            chat.innerHTML += `<div><b>Du:</b> ${txt}</div>`;
+
+            // Call an Puter AI
+            const resp = await puter.ai.chat(txt, { model: 'gpt-5.2-thinking' });
+
+            chat.innerHTML += `<div><b>AI:</b> ${resp?.message?.content || resp}</div>`;
+        }
+    </script>
+</body>
+</html>
