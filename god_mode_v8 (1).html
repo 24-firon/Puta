@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>GOD_MODE v8: ARCHITECT EDITION</title>
+    <!-- Puter Core Library -->
+    <script src="https://js.puter.com/v2/"></script>
+    <!-- Rendering Engine -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- Styling & Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/monokai.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+    <style>
+        :root { --bg: #000000; --sidebar: #0a0a0a; --accent: #ff0055; --text: #f0f0f0; --font: 'JetBrains Mono', monospace; }
+        * { box-sizing: border-box; }
+        body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); height: 100vh; display: grid; grid-template-columns: 350px 1fr; overflow: hidden; }
+
+        /* UI Architecture */
+        aside { background: var(--sidebar); border-right: 1px solid #222; padding: 20px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; }
+        .logo { font-size: 1.5rem; font-weight: 900; color: var(--accent); letter-spacing: -1px; margin-bottom: 5px; text-transform: uppercase; }
+        .label { font-size: 0.7rem; color: #666; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; }
+
+        /* Interactive Elements */
+        select, input[type="text"], textarea { width: 100%; background: #050505; border: 1px solid #333; color: #fff; padding: 10px; border-radius: 4px; font-family: inherit; font-size: 0.8rem; outline: none; transition: border 0.2s; }
+        select:focus, input:focus { border-color: var(--accent); }
+        .manual-input { margin-top: 5px; font-family: monospace; color: var(--accent); border-color: #444; }
+
+        /* Chat Stream */
+        main { display: grid; grid-template-rows: 1fr auto; background: radial-gradient(circle at 70% 30%, #110005 0%, #000 70%); }
+        #chat-stream { padding: 40px; overflow-y: auto; scroll-behavior: smooth; }
+        .msg { margin-bottom: 30px; max-width: 1000px; margin-left: auto; margin-right: auto; }
+        .meta { font-size: 0.7rem; color: #555; margin-bottom: 5px; }
+        .bubble { padding: 20px; border: 1px solid #222; background: #050505; border-radius: 6px; line-height: 1.6; }
+        .ai .bubble { border-color: var(--accent); box-shadow: 0 0 20px rgba(255, 0, 85, 0.05); }
+
+        /* Input Deck */
+        .input-zone { padding: 20px; background: var(--sidebar); border-top: 1px solid #222; }
+        .container { max-width: 1000px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }
+        .tools { display: flex; gap: 10px; }
+        .btn-tool { background: #111; border: 1px solid #333; color: #888; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; display: flex; align-items: center; gap: 5px; }
+        .btn-tool:hover { color: #fff; border-color: #666; }
+        .btn-tool.active { color: var(--accent); border-color: var(--accent); }
+
+        .prompt-row { display: flex; gap: 10px; }
+        textarea#prompt { height: 70px; resize: none; font-size: 1rem; background: #000; }
+        button#run { width: 90px; background: var(--accent); color: #000; border: none; font-weight: 900; cursor: pointer; border-radius: 4px; }
+        button#run:hover { filter: brightness(1.2); }
+        #media-preview { display: none; margin-bottom: 10px; max-height: 120px; border: 1px solid #444; }
+        pre { background: #080808 !important; padding: 15px; border-radius: 6px; border: 1px solid #333; overflow-x: auto; }
+    </style>
+</head>
+<body>
+
+<aside>
+    <div class="logo">/// GOD_MODE v8</div>
+    <div style="font-size: 0.7rem; color: #444;">ARCHITECT EDITION</div>
+
+    <div style="margin-top:20px;">
+        <div class="label">MODEL SELECTOR</div>
+        <select id="model-dropdown" onchange="updateManualInput()">
+            <optgroup label="ANTHROPIC (High IQ)">
+                <option value="claude-opus-4-6">Opus 4.6 (Latest)</option>
+                <option value="anthropic/claude-sonnet-4-5">Sonnet 4.5</option>
+                <option value="claude-haiku-4-5">Haiku 4.5</option>
+            </optgroup>
+            <optgroup label="GOOGLE (Multimodal)">
+                <option value="google/gemini-3.0-flash">Gemini 3.0 Flash (Vision King)</option>
+                <option value="google/gemini-3.0-pro">Gemini 3.0 Pro</option>
+            </optgroup>
+            <optgroup label="OPENAI">
+                <option value="openai/gpt-5.2">GPT-5.2</option>
+                <option value="openai/o3-mini">o3-mini</option>
+            </optgroup>
+            <optgroup label="SPECIALISTS">
+                <option value="moonshot/kimi-k2.5">Kimi k2.5 (Agentic)</option>
+                <option value="qwen/qwen-2.5-max">Qwen 2.5 Max (Coding)</option>
+            </optgroup>
+            <optgroup label="GENERATION">
+                <option value="black-forest-labs/flux.1.1-pro">Flux 1.1 Pro (Image)</option>
+                <option value="openai/sora-2">Sora 2 (Video)</option>
+            </optgroup>
+        </select>
+
+        <div class="label" style="margin-top:10px;">RAW MODEL ID (OVERRIDE)</div>
+        <input type="text" id="model-manual" class="manual-input" value="claude-opus-4-6">
+    </div>
+
+    <div style="margin-top:20px;">
+        <div class="label">CONFIG</div>
+        <textarea id="sys-prompt" rows="3">You are a precise, technical AI. Output clean code.</textarea>
+        <div style="margin-top:10px; display:flex; gap:10px; align-items:center; font-size:0.8rem; color:#aaa;">
+            <input type="checkbox" id="power-mode"> <span>Power Mode (Swarm)</span>
+        </div>
+    </div>
+</aside>
+
+<main>
+    <div id="chat-stream">
+        <div class="msg ai"><div class="meta">SYSTEM</div><div class="bubble">v8 Online. Ready.</div></div>
+    </div>
+    <div class="input-zone">
+        <div class="container">
+            <img id="media-preview" src="" alt="">
+            <div class="tools">
+                <button class="btn-tool" onclick="document.getElementById('file-in').click()"><i class="fa-solid fa-upload"></i> Upload</button>
+                <button class="btn-tool" id="mic-btn" onclick="toggleMic()"><i class="fa-solid fa-microphone"></i> Voice</button>
+                <button class="btn-tool" onclick="document.getElementById('chat-stream').innerHTML=''; history=[];"><i class="fa-solid fa-trash"></i> Wipe</button>
+            </div>
+            <div class="prompt-row">
+                <textarea id="prompt" placeholder="Command..."></textarea>
+                <button id="run" onclick="run()">GO</button>
+            </div>
+            <input type="file" id="file-in" hidden>
+        </div>
+    </div>
+</main>
+
+<script>
+    let history = [], attachment = null, recognition = null;
+    function updateManualInput() { document.getElementById('model-manual').value = document.getElementById('model-dropdown').value; }
+
+    // FILE
+    document.getElementById('file-in').addEventListener('change', (e) => {
+        const f = e.target.files[0]; if(!f) return;
+        const r = new FileReader();
+        r.onload = (evt) => {
+            const res = evt.target.result;
+            if(f.type.startsWith('image/')) {
+                attachment = { type: 'img', content: res };
+                const img = document.getElementById('media-preview'); img.src = res; img.style.display='block';
+            } else {
+                attachment = { type: 'text', content: res, name: f.name };
+                alert(`Loaded: ${f.name}`);
+            }
+        };
+        if(f.type.startsWith('image/')) r.readAsDataURL(f); else r.readAsText(f);
+    });
+
+    // VOICE
+    function toggleMic() {
+        if(!('webkitSpeechRecognition' in window)) return alert("No Voice Support");
+        const btn = document.getElementById('mic-btn');
+        if(recognition) { recognition.stop(); recognition=null; btn.classList.remove('active'); return; }
+        btn.classList.add('active');
+        recognition = new webkitSpeechRecognition(); recognition.lang='de-DE';
+        recognition.onresult=(e)=>{ document.getElementById('prompt').value+=e.results[0][0].transcript+" "; btn.classList.remove('active'); recognition=null; };
+        recognition.start();
+    }
+
+    // RUN ENGINE
+    async function run() {
+        const pEl = document.getElementById('prompt');
+        const txt = pEl.value.trim();
+        const model = document.getElementById('model-manual').value;
+        const sys = document.getElementById('sys-prompt').value;
+        const power = document.getElementById('power-mode').checked;
+        const chat = document.getElementById('chat-stream');
+
+        if(!txt && !attachment) return;
+        appendMsg('user', 'YOU', txt || '[Data Sent]'); pEl.value='';
+
+        const aiDiv = appendMsg('ai', model, '<i class="fa-solid fa-cog fa-spin"></i> Processing...');
+        const contentDiv = aiDiv.querySelector('.bubble');
+
+        try {
+            // Media Gen
+            if(model.includes('flux') || model.includes('sora') || model.includes('dall')) {
+                contentDiv.innerHTML = `Generating media via ${model}...`;
+                let res = (model.includes('flux') || model.includes('dall')) ? await puter.ai.txt2img(txt, {model}) : await puter.ai.txt2vid(txt, {model});
+                contentDiv.innerHTML=''; contentDiv.appendChild(res); return;
+            }
+
+            // Chat Logic
+            let msgs = [...history];
+            if(!history.length && sys) msgs.push({role:'system', content: sys});
+
+            let payload = [];
+            if(attachment) {
+                if(attachment.type === 'img') payload.push({type:'image_url', image_url:{url:attachment.content}});
+                else payload.push({type:'text', text:`[FILE ${attachment.name}]\n${attachment.content}`});
+                attachment=null; document.getElementById('media-preview').style.display='none';
+            }
+            if(txt) payload.push({type:'text', text:txt});
+            msgs.push({role:'user', content: payload});
+
+            let opts = { model: model, stream: true };
+            if(power && model.includes('kimi')) opts.extra_headers = { "X-Moonshot-Agent-Swarm": "true" };
+
+            const res = await puter.ai.chat(msgs, opts);
+            let buf = "";
+            for await (const part of res) {
+                if(part?.text) { buf += part.text; contentDiv.innerHTML = marked.parse(buf); chat.scrollTop = chat.scrollHeight; }
+            }
+            contentDiv.querySelectorAll('pre code').forEach(el=>hljs.highlightElement(el));
+            history.push({role:'user', content:payload}); history.push({role:'assistant', content:buf});
+
+        } catch(e) {
+            console.error(e);
+            contentDiv.innerHTML = `<span style="color:#ff5555">ERROR: ${e.message}</span>`;
+        }
+    }
+
+    function appendMsg(role, meta, html) {
+        const d = document.createElement('div'); d.className=`msg ${role}`;
+        d.innerHTML = `<div class="meta">${meta}</div><div class="bubble">${html}</div>`;
+        document.getElementById('chat-stream').appendChild(d);
+        document.getElementById('chat-stream').scrollTop = document.getElementById('chat-stream').scrollHeight;
+        return d;
+    }
+</script>
+</body>
+</html>
