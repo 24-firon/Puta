@@ -1,40 +1,105 @@
 <!DOCTYPE html>
-<html>
+<html lang="de">
 <head>
-    <!-- Puter.js laden (WICHTIG) -->
-    <script src="https://js.puter.com/v2/"></script>
-    <style>body{font-family:sans-serif;padding:20px;}</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Puta AI</title>
+    <style>
+        body { background-color: #121212; color: #e0e0e0; font-family: monospace; display: flex; flex-direction: column; height: 100vh; margin: 0; }
+        #chat-container { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+        .msg { padding: 10px 15px; border-radius: 8px; max-width: 80%; }
+        .user { align-self: flex-end; background-color: #0056b3; }
+        .bot { align-self: flex-start; background-color: #333; border: 1px solid #444; }
+        #input-area { padding: 20px; background: #1e1e1e; display: flex; gap: 10px; }
+        input { flex: 1; padding: 10px; background: #333; border: none; color: white; border-radius: 4px; }
+        button { padding: 10px 20px; cursor: pointer; background: #007bff; border: none; color: white; border-radius: 4px; font-weight: bold; }
+        #key-banner { background: #b91c1c; color: white; padding: 10px; text-align: center; font-size: 12px; cursor: pointer; }
+    </style>
 </head>
 <body>
-    <h1>GPT-5.2 Dashboard</h1>
-    <div id="status">Lade...</div>
-    <div id="chat" style="border:1px solid #ccc;height:300px;overflow:auto;margin:10px 0;padding:10px;"></div>
-    <input type="text" id="msg" placeholder="Nachricht..." style="width:80%">
-    <button onclick="send()">Senden</button>
 
-    <script>
-        const chat = document.getElementById('chat');
-        const status = document.getElementById('status');
+<!-- API KEY EINGABE -->
+<div id="key-banner" onclick="askKey()">⚠️ KLICK HIER um deinen OpenAI Key einzugeben (wird nur lokal gespeichert)</div>
 
-        // 1. Automatisch einloggen (Popup wenn nötig, sonst Silent)
-        (async () => {
-            if (!puter.auth.isSignedIn()) {
-                status.innerText = "Logge ein...";
-                await puter.auth.signIn();
-            }
-            status.innerText = "Verbunden als: " + (await puter.auth.getUser()).username;
-        })();
+<div id="chat-container">
+    <div class="msg bot">Hi. Ich bin bereit. Hast du einen Key gesetzt?</div>
+</div>
 
-        // 2. Chat Funktion
-        async function send() {
-            const txt = document.getElementById('msg').value;
-            chat.innerHTML += `<div><b>Du:</b> ${txt}</div>`;
+<div id="input-area">
+    <input type="text" id="user-input" placeholder="Schreib was..." onkeypress="if(event.key==='Enter') sendMsg()">
+    <button onclick="sendMsg()">SENDEN</button>
+</div>
 
-            // Call an Puter AI
-            const resp = await puter.ai.chat(txt, { model: 'gpt-5.2-thinking' });
+<script>
+    let apiKey = localStorage.getItem("openai_key");
 
-            chat.innerHTML += `<div><b>AI:</b> ${resp?.message?.content || resp}</div>`;
+    function askKey() {
+        const key = prompt("Gib deinen OpenAI API Key ein (sk-proj-...):", apiKey || "");
+        if (key) {
+            localStorage.setItem("openai_key", key);
+            apiKey = key;
+            document.getElementById("key-banner").style.background = "#059669";
+            document.getElementById("key-banner").innerText = "✅ Key gespeichert. Ready.";
         }
-    </script>
+    }
+
+    async function sendMsg() {
+        const input = document.getElementById("user-input");
+        const text = input.value.trim();
+        if (!text) return;
+        
+        if (!apiKey) { alert("Bitte erst oben auf den roten Banner klicken und API Key eingeben!"); return; }
+
+        addBubble(text, "user");
+        input.value = "";
+        
+        // Lade-Indikator
+        const loadingId = addBubble("...", "bot");
+
+        try {
+            const response = await fetch("https://api.openai.com/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + apiKey
+                },
+                body: JSON.stringify({
+                    model: "gpt-4o-mini", // Oder "gpt-3.5-turbo"
+                    messages: [{role: "user", content: text}]
+                })
+            });
+
+            const data = await response.json();
+            
+            // Lade-Bubble entfernen und echte Antwort setzen
+            document.getElementById(loadingId).remove();
+            
+            if (data.error) {
+                addBubble("Error: " + data.error.message, "bot");
+            } else {
+                addBubble(data.choices[0].message.content, "bot");
+            }
+        } catch (e) {
+            document.getElementById(loadingId).innerText = "Netzwerkfehler.";
+        }
+    }
+
+    function addBubble(txt, type) {
+        const div = document.createElement("div");
+        div.className = "msg " + type;
+        div.innerText = txt;
+        div.id = "msg-" + Date.now();
+        document.getElementById("chat-container").appendChild(div);
+        document.getElementById("chat-container").scrollTop = 100000;
+        return div.id;
+    }
+
+    // Check beim Start
+    if(apiKey) {
+        document.getElementById("key-banner").style.background = "#059669";
+        document.getElementById("key-banner").innerText = "✅ Key geladen. Leg los.";
+    }
+</script>
+
 </body>
 </html>
